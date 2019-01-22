@@ -7,13 +7,15 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CatagoryViewController: UITableViewController {
-
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext//SHARED IS AN SINGLETON .WE PULLED CONTEXT OBJ FROM APPDELEGETA FILE
     
-    var categoryArray = [Category]() // INITILASIED AS EMPTY ARRAY OF CATEGORYNS OBJ
+    let realm = try! Realm() //new realmdatabase created
+
+    
+    
+    var categoryArray : Results<Category>?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -23,15 +25,14 @@ class CatagoryViewController: UITableViewController {
 
     //MARK: - TableView DataSource Methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return categoryArray.count
+        return categoryArray?.count ?? 1
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {//FOR EFFICEINCY WE USE REUSABLECELLS
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "CatagoryCell", for: indexPath)
         
-        let category = categoryArray[indexPath.row]
+        cell.textLabel?.text = categoryArray?[indexPath.row].name ?? "No categories added"
         
-        cell.textLabel?.text = category.name
         
         return cell
     }
@@ -45,7 +46,7 @@ class CatagoryViewController: UITableViewController {
         let destinationVC = segue.destination as! TodolistViewController //to pass data from here to todo list
         
         if   let indexPath = tableView.indexPathForSelectedRow {//there is no selection at the moment
-            destinationVC.selectedCategory = categoryArray[indexPath.row]
+            destinationVC.selectedCategory = categoryArray?[indexPath.row]
         }
         
     }
@@ -55,15 +56,13 @@ class CatagoryViewController: UITableViewController {
         
         let alert = UIAlertController(title: "Add a new Category", message: "", preferredStyle: .alert)
         
-        let action = UIAlertAction(title: "Add a Category", style: .default) { (action) in
+        let action = UIAlertAction(title: "Add", style: .default) { (action) in
             
-            let newCategory = Category(context: self.context)
+            let newCategory = Category()  
             
-            newCategory.name = textField.text
+            newCategory.name = textField.text!
             
-            self.categoryArray.append(newCategory)
-            
-            self.saveCategories()
+            self.save(category: newCategory)
             
         }
         alert.addTextField { (alertTextField) in
@@ -76,10 +75,12 @@ class CatagoryViewController: UITableViewController {
         present(alert,animated: true,completion: nil)
         
     }
-    func saveCategories(){
+    func save(category : Category){
         
         do{
-            try context.save()
+            try realm.write {//do update database commit!
+                realm.add(category)
+            }
         } catch {
             print("Error saving context \(error)")
 
@@ -88,46 +89,40 @@ class CatagoryViewController: UITableViewController {
         
     }
     
-    func loadCategories (with request : NSFetchRequest<Category>  = Category.fetchRequest()) {
-        
-        
-        do{
-            categoryArray = try context.fetch(request)
-        } catch {
-            print("Error fetching data from context \(error)")
-        }
-        tableView.reloadData()
+    func loadCategories () {
+        categoryArray = realm.objects(Category.self)//READS FROM REALM
+         tableView.reloadData()
     }
 
     
 }
 
-extension CatagoryViewController : UISearchBarDelegate{
-    
-    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        
-        let request : NSFetchRequest<Category> = Category.fetchRequest()
-        
-        request.predicate = NSPredicate(format: "name CONTAINS[cd] %@", searchBar.text!)
-        
-        let sortDiscrotr = NSSortDescriptor(key: "name", ascending: true)
-        
-        request.sortDescriptors = [sortDiscrotr]
-        
-        loadCategories(with: request)
-    }
-    
-    
-    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        
-        if(searchBar.text?.count == 0){
-            
-            loadCategories()
-            
-            DispatchQueue.main.async {
-                searchBar.resignFirstResponder()
-            }
-        }
-    }
-    
-}
+//extension CatagoryViewController : UISearchBarDelegate{
+//    
+//    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+//        
+//        let request : NSFetchRequest<Category> = Category.fetchRequest()
+//        
+//        request.predicate = NSPredicate(format: "name CONTAINS[cd] %@", searchBar.text!)
+//        
+//        let sortDiscrotr = NSSortDescriptor(key: "name", ascending: true)
+//        
+//        request.sortDescriptors = [sortDiscrotr]
+//        
+//        loadCategories(with: request)
+//    }
+//    
+//    
+//    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+//        
+//        if(searchBar.text?.count == 0){
+//            
+//            loadCategories()
+//            
+//            DispatchQueue.main.async {
+//                searchBar.resignFirstResponder()
+//            }
+//        }
+//    }
+//    
+//}
